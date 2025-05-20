@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Dice Recognition with Local OpenCV.js</title>
-    <script src="opencv.js" onerror="handleOpenCVError()"></script> <!-- ローカルのOpenCV.js -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dice Recognition App</title>
+    <script src="opencv.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -16,116 +16,82 @@
             margin: 10px auto;
             display: block;
         }
-        #output {
-            margin-top: 20px;
-        }
-        #cameraSelect, #captureButton, #resetButton, #diagnosticButton {
+        button, select {
+            margin: 10px;
+            padding: 10px;
             font-size: 16px;
-            padding: 5px 10px;
-            margin: 10px 5px;
         }
         #message {
             color: red;
-            font-size: 24px;
-            font-weight: bold;
-            margin-top: 10px;
-            height: 40px;
-        }
-        #loading {
-            color: blue;
-            font-size: 20px;
-            margin-top: 20px;
-        }
-        #diagnosticResult {
-            color: green;
             font-size: 18px;
+            margin-top: 10px;
+        }
+        #output {
             margin-top: 20px;
+            font-size: 18px;
         }
     </style>
 </head>
 <body>
-    <h1>Dice Recognition with Local OpenCV.js</h1>
+    <h1>Dice Recognition App</h1>
 
-    <div id="loading">読み込み中...</div>
-
-    <select id="cameraSelect" disabled>
+    <select id="cameraSelect">
         <option value="environment">背面カメラ</option>
         <option value="user">前面カメラ</option>
     </select>
-
-    <button id="captureButton" disabled>撮影</button>
-    <button id="resetButton" disabled>リセット</button>
-    <button id="diagnosticButton">OpenCV診断</button>
-
+    <br>
     <video id="camera" autoplay playsinline></video>
     <canvas id="canvas" style="display:none;"></canvas>
 
-    <div id="output">
-        <h2>Results:</h2>
-        <p>Dice Values: <span id="dice-values">N/A</span></p>
-        <p>Total: <span id="total">N/A</span></p>
-        <div id="message"></div>
+    <div>
+        <button id="captureButton">撮影</button>
+        <button id="resetButton" disabled>リセット</button>
     </div>
 
-    <div id="diagnosticResult"></div>
+    <div id="output">
+        <p>ダイスの目: <span id="diceValues">N/A</span></p>
+        <p>合計: <span id="diceTotal">N/A</span></p>
+    </div>
+
+    <div id="message"></div>
 
     <script>
         const video = document.getElementById('camera');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        const diceValues = document.getElementById('dice-values');
-        const total = document.getElementById('total');
         const cameraSelect = document.getElementById('cameraSelect');
         const captureButton = document.getElementById('captureButton');
         const resetButton = document.getElementById('resetButton');
+        const diceValues = document.getElementById('diceValues');
+        const diceTotal = document.getElementById('diceTotal');
         const message = document.getElementById('message');
-        const loading = document.getElementById('loading');
-        const diagnosticButton = document.getElementById('diagnosticButton');
-        const diagnosticResult = document.getElementById('diagnosticResult');
 
         let currentStream = null;
-        let opencvInitialized = false;
-        let initializationStartTime = Date.now();
-
-        function handleOpenCVError() {
-            loading.textContent = 'OpenCV.jsの読み込みに失敗しました。ファイルパスを確認してください。';
-            console.error('OpenCV.jsの読み込みに失敗しました。');
-        }
 
         async function startCamera(facingMode) {
             if (currentStream) {
                 currentStream.getTracks().forEach(track => track.stop());
             }
             try {
-                const constraints = { video: { facingMode: { exact: facingMode } } };
+                const constraints = {
+                    video: { facingMode: facingMode }
+                };
                 currentStream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = currentStream;
                 video.onloadedmetadata = () => {
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
                 };
-                resetButton.disabled = true;
-                captureButton.disabled = false;
             } catch (err) {
-                alert('カメラアクセスエラー: ' + err.message);
-                console.error(err);
+                message.textContent = 'カメラのアクセスに失敗しました: ' + err.message;
             }
         }
 
         cameraSelect.addEventListener('change', () => {
             startCamera(cameraSelect.value);
-            diceValues.textContent = 'N/A';
-            total.textContent = 'N/A';
-            message.textContent = '';
-            resetButton.disabled = true;
-            captureButton.disabled = false;
         });
 
         captureButton.addEventListener('click', () => {
-            if (!video.videoWidth || !video.videoHeight) {
-                alert('カメラ映像の読み込み待ち中です。少し待ってから再度撮影してください。');
-                return;
-            }
             video.pause();
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             processImage();
@@ -135,7 +101,7 @@
 
         resetButton.addEventListener('click', () => {
             diceValues.textContent = 'N/A';
-            total.textContent = 'N/A';
+            diceTotal.textContent = 'N/A';
             message.textContent = '';
             video.play();
             captureButton.disabled = false;
@@ -144,10 +110,6 @@
 
         function processImage() {
             try {
-                if (!cv || !cv.imread) {
-                    throw new Error('OpenCV.jsが完全にロードされていません。ページを再読み込みしてください。');
-                }
-
                 let src = cv.imread(canvas);
                 let gray = new cv.Mat();
                 let blurred = new cv.Mat();
@@ -161,41 +123,29 @@
                 let hierarchy = new cv.Mat();
                 cv.findContours(binary, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
-                let diceResults = [];
-
+                let results = [];
                 for (let i = 0; i < contours.size(); i++) {
                     let contour = contours.get(i);
                     let rect = cv.boundingRect(contour);
-                    let diceROI = binary.roi(rect);
+                    let roi = binary.roi(rect);
 
-                    let circleCenters = new cv.Mat();
-                    cv.HoughCircles(
-                        diceROI,
-                        circleCenters,
-                        cv.HOUGH_GRADIENT,
-                        1,
-                        diceROI.rows / 8,
-                        100,
-                        20,
-                        5,
-                        15
-                    );
+                    let circles = new cv.Mat();
+                    cv.HoughCircles(roi, circles, cv.HOUGH_GRADIENT, 1, roi.rows / 8, 100, 20, 5, 15);
+                    results.push(circles.cols);
 
-                    diceResults.push(circleCenters.cols);
-
-                    diceROI.delete();
+                    roi.delete();
                     contour.delete();
-                    circleCenters.delete();
+                    circles.delete();
                 }
 
-                if (diceResults.length === 0) {
-                    message.textContent = "ダイスがみつかりません";
+                if (results.length === 0) {
+                    message.textContent = 'ダイスが見つかりません';
                     diceValues.textContent = 'N/A';
-                    total.textContent = 'N/A';
+                    diceTotal.textContent = 'N/A';
                 } else {
                     message.textContent = '';
-                    diceValues.textContent = diceResults.join(', ');
-                    total.textContent = diceResults.reduce((sum, num) => sum + num, 0);
+                    diceValues.textContent = results.join(', ');
+                    diceTotal.textContent = results.reduce((a, b) => a + b, 0);
                 }
 
                 src.delete();
@@ -204,35 +154,14 @@
                 binary.delete();
                 contours.delete();
                 hierarchy.delete();
-            } catch (error) {
-                console.error('Processing error:', error);
-                alert(`画像処理中にエラーが発生しました: ${error.message}`);
+            } catch (err) {
+                console.error(err);
+                message.textContent = '画像処理中にエラーが発生しました。';
             }
         }
 
-        function checkInitializationTimeout() {
-            if (!opencvInitialized && Date.now() - initializationStartTime > 15000) {
-                loading.textContent = 'OpenCV.jsの初期化がタイムアウトしました。ページを再読み込みしてください。';
-                console.error('OpenCV.jsの初期化がタイムアウトしました。');
-            }
-        }
-
-        diagnosticButton.addEventListener('click', () => {
-            diagnosticResult.textContent = '';
-            if (!cv) {
-                diagnosticResult.textContent = 'OpenCV.jsがロードされていません。';
-                return;
-            }
-            try {
-                let testMat = cv.Mat.ones(10, 10, cv.CV_8UC3); // 小さなテスト画像
-                let grayTestMat = new cv.Mat();
-                cv.cvtColor(testMat, grayTestMat, cv.COLOR_RGBA2GRAY);
-                diagnosticResult.textContent = 'OpenCV.jsが正常に動作しています。';
-                testMat.delete();
-                grayTestMat.delete();
-            } catch (error) {
-                diagnosticResult.textContent = 'OpenCV.jsの動作に問題があります: ' + error.message;
-            }
-        });
-
-        cv['onRuntimeInitialized']
+        // 初期設定
+        startCamera('environment');
+    </script>
+</body>
+</html>
