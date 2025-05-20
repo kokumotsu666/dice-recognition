@@ -1,50 +1,50 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Dice Recognition with Local OpenCV.js</title>
-    <script src="opencv.js"></script> <!-- ローカルのOpenCV.js -->
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            text-align: center;
-        }
-        video, canvas {
-            max-width: 100%;
-            margin: 10px auto;
-            display: block;
-        }
-        #output {
-            margin-top: 20px;
-        }
-        #cameraSelect, #captureButton, #resetButton {
-            font-size: 16px;
-            padding: 5px 10px;
-            margin: 10px 5px;
-        }
-        #message {
-            color: red;
-            font-size: 24px;
-            font-weight: bold;
-            margin-top: 10px;
-            height: 40px;
-        }
-        #loading {
-            color: blue;
-            font-size: 20px;
-            margin-top: 20px;
-            display: none;
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dice Recognition with Local OpenCV.js</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        text-align: center;
+    }
+    video, canvas {
+        max-width: 100%;
+        margin: 10px auto;
+        display: block;
+    }
+    #output {
+        margin-top: 20px;
+    }
+    #cameraSelect, #captureButton, #resetButton {
+        font-size: 16px;
+        padding: 5px 10px;
+        margin: 10px 5px;
+    }
+    #message {
+        color: red;
+        font-size: 24px;
+        font-weight: bold;
+        margin-top: 10px;
+        height: 40px;
+    }
+    #loading {
+        color: blue;
+        font-size: 20px;
+        margin-top: 20px;
+        display: none;
+    }
+</style>
 </head>
 <body>
-    <h1>Dice Recognition with Local OpenCV.js r1</h1>
+    <h1>Dice Recognition with Local OpenCV.js</h1>
 
     <div id="loading">読み込み中...</div>
+    <div id="error" style="color:red; font-weight:bold; margin-top:20px;"></div>
 
-    <select id="cameraSelect">
+    <select id="cameraSelect" disabled>
         <option value="environment">背面カメラ</option>
         <option value="user">前面カメラ</option>
     </select>
@@ -62,6 +62,9 @@
         <div id="message"></div>
     </div>
 
+    <!-- OpenCV.jsを同じフォルダから読み込み -->
+    <script src="opencv.js" id="opencvjs" onerror="onOpenCvError()"></script>
+
     <script>
         const video = document.getElementById('camera');
         const canvas = document.getElementById('canvas');
@@ -73,8 +76,23 @@
         const resetButton = document.getElementById('resetButton');
         const message = document.getElementById('message');
         const loading = document.getElementById('loading');
+        const errorDiv = document.getElementById('error');
 
         let currentStream = null;
+        let initTimeout = null;
+        let opencvInitialized = false;
+
+        function onOpenCvError() {
+            loading.style.display = 'none';
+            errorDiv.textContent = 'OpenCV.jsの読み込みに失敗しました。ファイルが存在するか、パスを確認してください。';
+            disableControls();
+        }
+
+        function disableControls() {
+            cameraSelect.disabled = true;
+            captureButton.disabled = true;
+            resetButton.disabled = true;
+        }
 
         async function startCamera(facingMode) {
             if (currentStream) {
@@ -194,18 +212,19 @@
             }
         }
 
+        // OpenCV.js初期化チェック＆タイムアウト設定
         const startTime = performance.now();
+        function onInitTimeout() {
+            if (!opencvInitialized) {
+                loading.style.display = 'none';
+                errorDiv.textContent = 'OpenCV.jsの初期化がタイムアウトしました。ネットワークやファイル配置を確認してください。';
+                disableControls();
+            }
+        }
+        initTimeout = setTimeout(onInitTimeout, 15000); // 15秒待って初期化されなければエラー
+
         cv['onRuntimeInitialized'] = () => {
+            opencvInitialized = true;
+            clearTimeout(initTimeout);
             const endTime = performance.now();
             console.log(`OpenCV.jsが初期化されました。初期化にかかった時間: ${(endTime - startTime).toFixed(2)}ms`);
-            loading.style.display = 'none';
-            cameraSelect.value = 'environment';
-            captureButton.disabled = false;
-            startCamera('environment');
-        };
-
-        loading.style.display = 'block';
-        captureButton.disabled = true;
-    </script>
-</body>
-</html>
