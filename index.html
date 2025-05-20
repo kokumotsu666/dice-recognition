@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Dice Recognition with OpenCV.js</title>
-    <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+    <title>Dice Recognition with Online OpenCV.js</title>
+    <script src="https://docs.opencv.org/4.x/opencv.js"></script> <!-- オンラインのOpenCV.js -->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -34,7 +34,7 @@
     </style>
 </head>
 <body>
-    <h1>Dice Recognition with OpenCV.js</h1>
+    <h1>Dice Recognition with Online OpenCV.js</h1>
 
     <select id="cameraSelect">
         <option value="environment">背面カメラ</option>
@@ -101,9 +101,7 @@
                 alert('カメラ映像の読み込み待ち中です。少し待ってから再度撮影してください。');
                 return;
             }
-            // 動画停止
             video.pause();
-            // キャンバスに現在の動画フレームを描画
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             processImage();
             captureButton.disabled = true;
@@ -111,11 +109,9 @@
         });
 
         resetButton.addEventListener('click', () => {
-            // 結果リセット
             diceValues.textContent = 'N/A';
             total.textContent = 'N/A';
             message.textContent = '';
-            // 動画再生開始
             video.play();
             captureButton.disabled = false;
             resetButton.disabled = true;
@@ -181,7 +177,7 @@
                 hierarchy.delete();
             } catch (error) {
                 console.error('Processing error:', error);
-                alert('画像処理中にエラーが発生しました。コンソールを確認してください。');
+                alert(`画像処理中にエラーが発生しました: ${error.message}`);
             }
         }
 
