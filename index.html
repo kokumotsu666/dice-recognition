@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Dice Recognition App</title>
     <script src="opencv.js"></script>
     <style>
@@ -33,13 +33,13 @@
     </style>
 </head>
 <body>
-    <h1>Dice Recognition App1</h1>
+    <h1>Dice Recognition App</h1>
 
     <select id="cameraSelect">
         <option value="environment">背面カメラ</option>
         <option value="user">前面カメラ</option>
     </select>
-    <br>
+    <br />
     <video id="camera" autoplay playsinline></video>
     <canvas id="canvas" style="display:none;"></canvas>
 
@@ -82,6 +82,7 @@
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
                 };
+                message.textContent = '';
             } catch (err) {
                 message.textContent = 'カメラのアクセスに失敗しました: ' + err.message;
             }
@@ -156,7 +157,7 @@
                 hierarchy.delete();
             } catch (err) {
                 console.error(err);
-                message.textContent = '画像処理中にエラーが発生しました。';
+                message.textContent = '画像処理中にエラーが発生しました: ' + err.message;
             }
         }
 
