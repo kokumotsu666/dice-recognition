@@ -1,0 +1,12 @@
+:contentReference[oaicite:21]{index=21}
+
+:contentReference[oaicite:23]{index=23}:contentReference[oaicite:25]{index=25}
+
+### 2. CDNを利用する方法
+
+:contentReference[oaicite:27]{index=27}:contentReference[oaicite:29]{index=29}
+
+例：:contentReference[oaicite:32]{index=32}
+
+```html
+<script async src="https://docs.opencv.org/4.x/opencv.js" onload="onOpenCvReady();" type="text/javascript"></script>
