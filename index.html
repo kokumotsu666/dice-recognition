@@ -19,29 +19,38 @@
         #output {
             margin-top: 20px;
         }
-        #cameraSelect {
-            margin-bottom: 10px;
+        #cameraSelect, #captureButton {
             font-size: 16px;
-            padding: 5px;
+            padding: 5px 10px;
+            margin: 10px 5px;
+        }
+        #message {
+            color: red;
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 10px;
+            height: 40px;
         }
     </style>
 </head>
 <body>
     <h1>Dice Recognition with OpenCV.js</h1>
 
-    <!-- iPhone対応：前面／背面カメラ選択 -->
     <select id="cameraSelect">
         <option value="environment">背面カメラ</option>
         <option value="user">前面カメラ</option>
     </select>
 
+    <button id="captureButton">撮影</button>
+
     <video id="camera" autoplay playsinline></video>
-    <canvas id="canvas"></canvas>
+    <canvas id="canvas" style="display:none;"></canvas>
 
     <div id="output">
         <h2>Results:</h2>
         <p>Dice Values: <span id="dice-values">N/A</span></p>
         <p>Total: <span id="total">N/A</span></p>
+        <div id="message"></div>
     </div>
 
     <script>
@@ -51,6 +60,8 @@
         const diceValues = document.getElementById('dice-values');
         const total = document.getElementById('total');
         const cameraSelect = document.getElementById('cameraSelect');
+        const captureButton = document.getElementById('captureButton');
+        const message = document.getElementById('message');
 
         let currentStream = null;
 
@@ -63,9 +74,9 @@
                 currentStream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = currentStream;
                 video.onloadedmetadata = () => {
+                    // canvasは動画のサイズに合わせるが非表示
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
-                    processFrame();
                 };
             } catch (err) {
                 alert('カメラアクセスエラー: ' + err.message);
@@ -75,11 +86,24 @@
 
         cameraSelect.addEventListener('change', () => {
             startCamera(cameraSelect.value);
+            // 撮影結果はリセット
+            diceValues.textContent = 'N/A';
+            total.textContent = 'N/A';
+            message.textContent = '';
         });
 
-        function processFrame() {
+        // 撮影ボタン押下時のみ処理
+        captureButton.addEventListener('click', () => {
+            if (!video.videoWidth || !video.videoHeight) {
+                alert('カメラ映像の読み込み待ち中です。少し待ってから再度撮影してください。');
+                return;
+            }
+            // 動画をキャンバスに描画
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            processImage();
+        });
 
+        function processImage() {
             try {
                 let src = cv.imread(canvas);
                 let gray = new cv.Mat();
@@ -108,46 +132,4 @@
                         cv.HOUGH_GRADIENT,
                         1,
                         diceROI.rows / 8,
-                        100,
-                        20,
-                        5,
-                        15
-                    );
-
-                    diceResults.push(circleCenters.cols);
-
-                    diceROI.delete();
-                    contour.delete();
-                    circleCenters.delete();
-                }
-
-                if (diceResults.length === 0) {
-                    ctx.font = "48px Arial";
-                    ctx.fillStyle = "red";
-                    ctx.textAlign = "center";
-                    ctx.fillText("ダイスがみつかりません", canvas.width / 2, canvas.height / 2);
-                }
-
-                diceValues.textContent = diceResults.join(', ') || 'N/A';
-                total.textContent = diceResults.reduce((sum, num) => sum + num, 0) || 'N/A';
-
-                src.delete();
-                gray.delete();
-                blurred.delete();
-                binary.delete();
-                contours.delete();
-                hierarchy.delete();
-            } catch (error) {
-                console.error('Processing error:', error);
-            }
-
-            requestAnimationFrame(processFrame);
-        }
-
-        window.onload = () => {
-            cameraSelect.value = 'environment';
-            startCamera('environment');
-        };
-    </script>
-</body>
-</html>
+                        100
