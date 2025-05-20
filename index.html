@@ -194,8 +194,10 @@
             }
         }
 
+        const startTime = performance.now();
         cv['onRuntimeInitialized'] = () => {
-            console.log('OpenCV.jsが初期化されました。');
+            const endTime = performance.now();
+            console.log(`OpenCV.jsが初期化されました。初期化にかかった時間: ${(endTime - startTime).toFixed(2)}ms`);
             loading.style.display = 'none';
             cameraSelect.value = 'environment';
             captureButton.disabled = false;
