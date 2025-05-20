@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dice Recognition with OpenCV.js</title>
+    <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            text-align: center;
+        }
+        video, canvas {
+            max-width: 100%;
+            margin: 10px auto;
+            display: block;
+        }
+        #output {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dice Recognition with OpenCV.js</h1>
+    <video id="camera" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
+    <div id="output">
+        <h2>Results:</h2>
+        <p>Dice Values: <span id="dice-values">N/A</span></p>
+        <p>Total: <span id="total">N/A</span></p>
+    </div>
+    <script>
+        const video = document.getElementById('camera');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const diceValues = document.getElementById('dice-values');
+        const total = document.getElementById('total');
+
+        // カメラアクセス
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    video.srcObject = stream;
+                    video.addEventListener('loadedmetadata', () => {
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        processFrame();
+                    });
+                })
+                .catch(err => {
+                    alert('Error accessing camera: ' + err.message);
+                    console.error('Camera access error:', err);
+                });
+        } else {
+            alert('Your browser does not support camera access.');
+        }
+
+        // フレーム処理
+        function processFrame() {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            try {
+                let src = cv.imread(canvas);
+                let gray = new cv.Mat();
+                let blurred = new cv.Mat();
+                let binary = new cv.Mat();
+
+                // 画像処理ステップ
+                cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+                cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+                cv.threshold(blurred, binary, 100, 255, cv.THRESH_BINARY_INV);
+
+                // 輪郭検出
+                let contours = new cv.MatVector();
+                let hierarchy = new cv.Mat();
+                cv.findContours(binary, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+                let diceResults = [];
+
+                for (let i = 0; i < contours.size(); i++) {
+                    let contour = contours.get(i);
+                    let rect = cv.boundingRect(contour);
+
+                    // サイコロの候補領域を切り出し
+                    let diceROI = binary.roi(rect);
+
+                    // サイコロ内の白い点をカウント
+                    let circles = new cv.MatVector();
+                    let circleCenters = new cv.Mat();
+                    cv.HoughCircles(
+                        diceROI,
+                        circleCenters,
+                        cv.HOUGH_GRADIENT,
+                        1,
+                        diceROI.rows / 8,
+                        100,
+                        20,
+                        5,
+                        15
+                    );
+                    diceResults.push(circleCenters.cols);
+
+                    diceROI.delete();
+                    contour.delete();
+                }
+
+                // 結果の表示
+                diceValues.textContent = diceResults.join(', ') || 'N/A';
+                total.textContent = diceResults.reduce((sum, num) => sum + num, 0) || 'N/A';
+
+                // メモリ解放
+                src.delete();
+                gray.delete();
+                blurred.delete();
+                binary.delete();
+                contours.delete();
+                hierarchy.delete();
+            } catch (error) {
+                console.error('Processing error:', error);
+            }
+
+            // 次のフレームを処理
+            requestAnimationFrame(processFrame);
+        }
+    </script>
+</body>
+</html>
