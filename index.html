@@ -29,8 +29,11 @@
 <body>
     <h1>Dice Recognition with OpenCV.js</h1>
 
-    <!-- カメラ選択 -->
-    <select id="cameraSelect"></select>
+    <!-- iPhone対応：前面／背面カメラ選択 -->
+    <select id="cameraSelect">
+        <option value="environment">背面カメラ</option>
+        <option value="user">前面カメラ</option>
+    </select>
 
     <video id="camera" autoplay playsinline></video>
     <canvas id="canvas"></canvas>
@@ -51,38 +54,12 @@
 
         let currentStream = null;
 
-        // カメラデバイス一覧取得とセレクトにセット
-        async function getCameraDevices() {
-            try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const videoDevices = devices.filter(device => device.kind === 'videoinput');
-
-                cameraSelect.innerHTML = '';
-                videoDevices.forEach((device, index) => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    option.text = device.label || `Camera ${index + 1}`;
-                    cameraSelect.appendChild(option);
-                });
-
-                if (videoDevices.length > 0) {
-                    startCamera(videoDevices[0].deviceId);
-                } else {
-                    alert('カメラが見つかりませんでした。');
-                }
-            } catch (err) {
-                alert('カメラデバイスの取得エラー: ' + err.message);
-                console.error(err);
-            }
-        }
-
-        // 指定カメラで映像開始
-        async function startCamera(deviceId) {
+        async function startCamera(facingMode) {
             if (currentStream) {
                 currentStream.getTracks().forEach(track => track.stop());
             }
             try {
-                const constraints = { video: { deviceId: { exact: deviceId } } };
+                const constraints = { video: { facingMode: { exact: facingMode } } };
                 currentStream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = currentStream;
                 video.onloadedmetadata = () => {
@@ -96,12 +73,10 @@
             }
         }
 
-        // カメラ選択変更イベント
         cameraSelect.addEventListener('change', () => {
             startCamera(cameraSelect.value);
         });
 
-        // 画像処理・ダイス認識と描画
         function processFrame() {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
@@ -169,8 +144,10 @@
             requestAnimationFrame(processFrame);
         }
 
-        // ページロード時にカメラ一覧取得
-        window.onload = getCameraDevices;
+        window.onload = () => {
+            cameraSelect.value = 'environment';
+            startCamera('environment');
+        };
     </script>
 </body>
 </html>
